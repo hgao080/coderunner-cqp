@@ -1,29 +1,9 @@
 import sys
+import json
+import io
+import contextlib
 from cqp_checker import check_principles
 
-# -----------------------------------------------------------------------
-# Configure which CQP principles to check for this question.
-#
-# Set via Template Parameters (JSON) in the question authoring form:
-#   {"cqp_principles": ["clear_presentation", "explanatory_language"]}
-#
-# Or use a single principle:
-#   {"cqp_principles": "used_content"}
-#
-# Available principle keys:
-#   'clear_presentation'    - Layout, formatting, indentation
-#   'explanatory_language'  - Naming, docstrings, comments
-#   'consistent_code'       - Consistent style choices
-#   'used_content'          - No unused imports/variables
-#   'simple_constructs'     - Minimize complexity
-#   'minimal_duplication'   - Avoid code repetition
-#   'modular_structure'     - Good function/class design
-#   'problem_alignment'     - Implementation matches problem
-#
-# If no parameters are provided, defaults to all principles.
-# -----------------------------------------------------------------------
-
-# Read from template parameters, with fallback to all principles
 {% if cqp_principles is defined %}
 {% if cqp_principles is iterable %}
 ACTIVE_PRINCIPLES = [{% for p in cqp_principles %}'{{ p }}'{% if not loop.last %}, {% endif %}{% endfor %}]
@@ -43,35 +23,126 @@ ACTIVE_PRINCIPLES = [
 ]
 {% endif %}
 
+# Student answer and all test cases, injected by Twig
+__student_answer__ = """{{ STUDENT_ANSWER | e("py") }}"""
 
-def code_ok(source_code):
-    results = check_principles(source_code, ACTIVE_PRINCIPLES)
+__test_cases__ = [
+{% for TEST in TESTCASES %}
+    {
+        "testcode": """{{ TEST.testcode | e("py") }}""",
+        "expected": """{{ TEST.expected | e("py") }}""",
+    },
+{% endfor %}
+]
 
-    # Collect only principles that have violations.
-    failed = [r for r in results if r['violations']]
 
-    if not failed:
-        return True
+def build_feedback_html(results):
+    failed = [r for r in results if r.get("violations")]
 
-    # Print one feedback block per failed principle.
+    annotations = []
+    feedback_lines = []
+
     for result in failed:
-        print('=' * 60, file=sys.stderr)
-        print(f"CQP Principle: {result['name']}", file=sys.stderr)
-        print(f"Principle:     {result['principle']}", file=sys.stderr)
-        print(f"Rationale:     {result['rationale']}", file=sys.stderr)
-        print('=' * 60, file=sys.stderr)
+        name = result.get("name")
+        principle = result.get("principle")
+        rationale = result.get("rationale")
 
-        for v in result['violations']:
-            print(f"\n  Line {v['line_no']}: {v['raw']}", file=sys.stderr)
-            print(f"  Why this matters: {v['explanation']}", file=sys.stderr)
+        feedback_lines.append("<hr>")
+        feedback_lines.append(f"<b>CQP Principle: {name}</b><br>")
+        feedback_lines.append(f"<i>{principle}</i><br>")
+        feedback_lines.append(f"Rationale: {rationale}<br>")
 
-        print('', file=sys.stderr)
+        for v in result.get("violations", []):
+            line_no = v.get("line_no")
+            raw = v.get("raw")
+            explanation = v.get("explanation")
 
-    print("Please fix the above style issues and resubmit.", file=sys.stderr)
-    return False
+            feedback_lines.append(
+                f"<br>Line {line_no}: <code>{raw}</code><br>"
+                f"&nbsp;&nbsp;Why this matters: {explanation}<br>"
+            )
+            annotations.append({
+                "row": int(line_no) - 1,
+                "column": 0,
+                "text": f"[{name}] {explanation}",
+                "type": "warning"
+            })
+
+    feedback_html = "\n".join(feedback_lines)
+    feedback_html += "<br><b>Please fix the above style issues and resubmit.</b>"
+
+    annotations_json = json.dumps(annotations)
+
+    # Use epiloguehtml so this renders below the result table and answer box,
+    # avoiding any DOM disruption to the Ace editor above.
+    # We retrieve the existing Ace instance via ace.edit() which returns the
+    # existing instance if the element has already been initialised.
+    script = (
+        "<script>"
+        "(function() {"
+        "function applyAnnotations() {"
+        "var divs = document.querySelectorAll('.ace_editor');"
+        "if (divs.length === 0) return;"
+        "var editor = ace.edit(divs[0]);"
+        "var annotations = " + annotations_json + ";"
+        "editor.getSession().setAnnotations(annotations);"
+        "}"
+        "setTimeout(applyAnnotations, 500);"
+        "})();"
+        "</script>"
+    )
+
+    return feedback_html + script
 
 
-__student_answer__ = """{{ STUDENT_ANSWER | e('py') }}"""
-if code_ok(__student_answer__):
-    __student_answer__ += '\n' + """{{ TEST.testcode | e('py') }}"""
-    exec(__student_answer__)
+def run_tests():
+    test_results = [["Test", "Expected", "Got", "Pass?"]]
+    total = len(__test_cases__)
+    passed = 0
+
+    exec_env = {}
+    try:
+        exec(__student_answer__, exec_env)
+    except Exception as e:
+        for tc in __test_cases__:
+            test_results.append([tc["testcode"], tc["expected"], str(e), "✗"])
+        return 0, test_results
+
+    for tc in __test_cases__:
+        testcode = tc["testcode"]
+        expected = tc["expected"].strip()
+        try:
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                exec(testcode, dict(exec_env))
+            got = buf.getvalue().strip()
+            ok = got == expected
+            passed += 1 if ok else 0
+            test_results.append([testcode, expected, got, "✓" if ok else "✗"])
+        except Exception as e:
+            test_results.append([testcode, expected, str(e), "✗"])
+
+    fraction = passed / total if total > 0 else 0
+    return fraction, test_results
+
+
+# --- Main grading logic ---
+results = check_principles(__student_answer__, ACTIVE_PRINCIPLES)
+failed = [r for r in results if r.get("violations")]
+
+if failed:
+    feedback_html = build_feedback_html(results)
+    outcome = {
+        "fraction": 0,
+        "epiloguehtml": feedback_html,
+        "testresults": []
+    }
+else:
+    fraction, test_results = run_tests()
+    outcome = {
+        "fraction": fraction,
+        "epiloguehtml": "",
+        "testresults": test_results
+    }
+
+print(json.dumps(outcome))
