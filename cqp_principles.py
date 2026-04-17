@@ -10,10 +10,46 @@ Principles not yet mapped are stubbed with empty dicts and a TODO comment.
 """
 
 # ---------------------------------------------------------------------------
-# 1. Explanatory Language
+# 1. Clear Presentation
+#    Principle: Different elements are easy to recognise and distinguish and
+#               the relationships between them are apparent.
+#    Rationale: Clear layout improves our shared understanding by making the
+#               individual elements easy to identify and signalling the
+#               elements the author considers to be related.
+# ---------------------------------------------------------------------------
+CLEAR_PRESENTATION = {
+    'C0301': (
+        'line-too-long',
+        "This line exceeds the recommended length. Long lines force the reader to "
+        "scroll horizontally and make it harder to see the structure of the code at a glance."
+    ),
+    'C0303': (
+        'trailing-whitespace',
+        "There is trailing whitespace on this line. While invisible, it adds noise "
+        "to diffs and version history, making changes harder to follow."
+    ),
+    'C0304': (
+        'missing-final-newline',
+        "The file does not end with a newline. This is a widely expected convention "
+        "that some tools rely on and which keeps file boundaries clear."
+    ),
+    'C0321': (
+        'multiple-statements',
+        "Multiple statements appear on one line. Placing each statement on its own line "
+        "makes the structure of the code easier to follow."
+    ),
+    'W0311': (
+        'bad-indentation',
+        "The indentation on this line is inconsistent. Consistent indentation is how "
+        "Python signals code structure — inconsistent indentation misleads the reader."
+    ),
+}
+
+# ---------------------------------------------------------------------------
+# 2. Explanatory Language
 #    Principle: The rationale, intent and meaning of code is explicit.
-#    Rationale: Being explicit in describing the purpose of code elements
-#               helps us understand the author's intention, improving
+#    Rationale: Being explicit in describing the purpose of the code elements
+#               helps us understand the author's intention, thus improving
 #               understandability.
 # ---------------------------------------------------------------------------
 EXPLANATORY_LANGUAGE = {
@@ -45,82 +81,16 @@ EXPLANATORY_LANGUAGE = {
     ),
 }
 
-# ---------------------------------------------------------------------------
-# 2. Clear Layout
-#    Principle: Different elements are easy to distinguish and the
-#               relationships between them are apparent.
-#    Rationale: Clear layout improves shared understanding by making
-#               individual elements easy to identify and signalling which
-#               elements the author considers related.
-# ---------------------------------------------------------------------------
-CLEAR_LAYOUT = {
-    'C0301': (
-        'line-too-long',
-        "This line exceeds the recommended length. Long lines force the reader to "
-        "scroll horizontally and make it harder to see the structure of the code at a glance."
-    ),
-    'C0303': (
-        'trailing-whitespace',
-        "There is trailing whitespace on this line. While invisible, it adds noise "
-        "to diffs and version history, making changes harder to follow."
-    ),
-    'C0304': (
-        'missing-final-newline',
-        "The file does not end with a newline. This is a widely expected convention "
-        "that some tools rely on and which keeps file boundaries clear."
-    ),
-    'C0321': (
-        'multiple-statements',
-        "Multiple statements appear on one line. Placing each statement on its own line "
-        "makes the structure of the code easier to follow."
-    ),
-    'W0311': (
-        'bad-indentation',
-        "The indentation on this line is inconsistent. Consistent indentation is how "
-        "Python signals code structure — inconsistent indentation misleads the reader."
-    ),
-}
+
 
 # ---------------------------------------------------------------------------
-# 3. Simple Constructs
-#    Principle: Coding constructs are selected to minimise complexity
-#               for the intended reader.
-#    Rationale: Code that is perceived as simple is easier to understand.
-# ---------------------------------------------------------------------------
-SIMPLE_CONSTRUCTS = {
-    'R0912': (
-        'too-many-branches',
-        "This function has too many branches (if/elif/else/try). "
-        "High branching makes it hard to follow all possible paths through the code. "
-        "Consider breaking it into smaller functions."
-    ),
-    'R0914': (
-        'too-many-locals',
-        "This function defines too many local variables. "
-        "A large number of variables increases the mental effort needed to track state. "
-        "Consider simplifying or splitting the function."
-    ),
-    'R0915': (
-        'too-many-statements',
-        "This function contains too many statements. "
-        "Long functions are harder to understand in one reading. "
-        "Breaking it into smaller, focused functions improves clarity."
-    ),
-    'C0123': (
-        'unidiomatic-typecheck',
-        "Using type() for a type check is more complex than necessary. "
-        "Using isinstance() is the simpler, more readable Python idiom."
-    ),
-}
-
-# ---------------------------------------------------------------------------
-# 4. Be Consistent
+# 3. Consistent Code
 #    Principle: Elements that are similar in nature are presented and
 #               used in a similar way.
 #    Rationale: Consistency leverages familiarity to reduce the mental
 #               effort required to understand the code.
 # ---------------------------------------------------------------------------
-BE_CONSISTENT = {
+CONSISTENT_CODE = {
     'C0209': (
         'consider-using-f-string',
         "String formatting is done inconsistently with the rest of modern Python style. "
@@ -131,13 +101,12 @@ BE_CONSISTENT = {
 }
 
 # ---------------------------------------------------------------------------
-# 5. No Unused Content
+# 4. Used Content
 #    Principle: All elements that are introduced are meaningfully used.
-#    Rationale: Unused code requires unnecessary mental effort — a reader
-#               must determine whether the unused element is intentional,
-#               a mistake, or leftover from an earlier version.
+#    Rationale: Non-contributing code elements require unnecessary mental
+#               effort.
 # ---------------------------------------------------------------------------
-NO_UNUSED_CONTENT = {
+USED_CONTENT = {
     'W0611': (
         'unused-import',
         "You've imported something that isn't used anywhere in your code. "
@@ -174,33 +143,47 @@ NO_UNUSED_CONTENT = {
 }
 
 # ---------------------------------------------------------------------------
-# 6. Congruent Implementation
-#    Principle: Implementation choices are consistent with the problem
-#               to be solved.
-#    Rationale: An implementation that reflects the problem is easier
-#               to change.
+# 5. Simple Constructs
+#    Principle: Coding constructs are selected to minimise complexity
+#               for the intended reader.
+#    Rationale: Code that is perceived by the reader as simple is easier
+#               to understand.
 # ---------------------------------------------------------------------------
-CONGRUENT_IMPLEMENTATION = {
-    'W0108': (
-        'unnecessary-lambda',
-        "This lambda wraps a function call that could be used directly. "
-        "The simpler, more direct implementation better reflects the intent."
+SIMPLE_CONSTRUCTS = {
+    'R0912': (
+        'too-many-branches',
+        "This function has too many branches (if/elif/else/try). "
+        "High branching makes it hard to follow all possible paths through the code. "
+        "Consider breaking it into smaller functions."
     ),
-    'R1733': (
-        'unnecessary-dict-index-lookup',
-        "You are looking up a dictionary value by key when you already have "
-        "the value available. The direct approach better matches the problem."
+    'R0914': (
+        'too-many-locals',
+        "This function defines too many local variables. "
+        "A large number of variables increases the mental effort needed to track state. "
+        "Consider simplifying or splitting the function."
     ),
-    # TODO: expand as more specific Pylint codes are identified for this principle.
+    'R0915': (
+        'too-many-statements',
+        "This function contains too many statements. "
+        "Long functions are harder to understand in one reading. "
+        "Breaking it into smaller, focused functions improves clarity."
+    ),
+    'C0123': (
+        'unidiomatic-typecheck',
+        "Using type() for a type check is more complex than necessary. "
+        "Using isinstance() is the simpler, more readable Python idiom."
+    ),
 }
 
 # ---------------------------------------------------------------------------
-# 7. Avoid Duplication
-#    Principle: Code duplication is avoided.
-#    Rationale: Duplicated code is difficult to change because there is
-#               a risk that not all instances are updated together.
+# 6. Minimal Duplication
+#    Principle: Code repetition is avoided.
+#    Rationale: Repeated code can be difficult to change because changes
+#               need to be made multiple times, there is a risk that not all
+#               items are changed and/or difficult to understand because you
+#               have to read more of it.
 # ---------------------------------------------------------------------------
-AVOID_DUPLICATION = {
+MINIMAL_DUPLICATION = {
     'R0801': (
         'duplicate-code',
         "Similar code appears in more than one place. "
@@ -212,12 +195,13 @@ AVOID_DUPLICATION = {
 }
 
 # ---------------------------------------------------------------------------
-# 8. Modular Structure
+# 7. Modular Structure
 #    Principle: Related code is grouped together and dependencies between
-#               groups are minimised.
+#               groups minimised.
 #    Rationale: Placing related elements together makes code easier to
-#               understand. Reducing interconnectedness means isolated
-#               pieces can be understood and modified independently.
+#               understand. Reducing inter-connectedness means that isolated
+#               pieces can be more easily understood and can be modified
+#               independently.
 # ---------------------------------------------------------------------------
 MODULAR_STRUCTURE = {
     'R0902': (
@@ -252,80 +236,100 @@ MODULAR_STRUCTURE = {
 }
 
 # ---------------------------------------------------------------------------
+# 8. Problem Alignment
+#    Principle: Implementation choices are consistent with the problem
+#               to be solved.
+#    Rationale: An implementation that reflects the problem is easier to
+#               understand and change.
+# ---------------------------------------------------------------------------
+PROBLEM_ALIGNMENT = {
+    'W0108': (
+        'unnecessary-lambda',
+        "This lambda wraps a function call that could be used directly. "
+        "The simpler, more direct implementation better reflects the intent."
+    ),
+    'R1733': (
+        'unnecessary-dict-index-lookup',
+        "You are looking up a dictionary value by key when you already have "
+        "the value available. The direct approach better matches the problem."
+    ),
+    # TODO: expand as more specific Pylint codes are identified for this principle.
+}
+
+# ---------------------------------------------------------------------------
 # Registry — maps string keys (used in the template) to principle dicts.
 # This is what cqp_checker.py imports.
 # ---------------------------------------------------------------------------
 PRINCIPLES = {
+    'clear_presentation': {
+        'name': 'Clear Presentation',
+        'principle': 'Different elements are easy to recognise and distinguish and the relationships between them are apparent.',
+        'rationale': (
+            'Clear layout improves our shared understanding by making the individual elements '
+            'easy to identify and signalling the elements the author considers to be related.'
+        ),
+        'codes': CLEAR_PRESENTATION,
+    },
     'explanatory_language': {
         'name': 'Explanatory Language',
         'principle': 'The rationale, intent and meaning of code is explicit.',
         'rationale': (
-            'Being explicit in describing the purpose of code elements helps us '
-            'understand the author\'s intention, improving understandability.'
+            'Being explicit in describing the purpose of the code elements helps us '
+            'understand the author\'s intention, thus improving understandability.'
         ),
         'codes': EXPLANATORY_LANGUAGE,
     },
-    'clear_layout': {
-        'name': 'Clear Layout',
-        'principle': 'Different elements are easy to distinguish and the relationships between them are apparent.',
-        'rationale': (
-            'Clear layout improves shared understanding by making individual elements '
-            'easy to identify and signalling which elements the author considers related.'
-        ),
-        'codes': CLEAR_LAYOUT,
-    },
-    'simple_constructs': {
-        'name': 'Simple Constructs',
-        'principle': 'Coding constructs are selected to minimise complexity for the intended reader.',
-        'rationale': (
-            'Code that is perceived as simple is easier to understand.'
-        ),
-        'codes': SIMPLE_CONSTRUCTS,
-    },
-    'be_consistent': {
-        'name': 'Be Consistent',
+    'consistent_code': {
+        'name': 'Consistent Code',
         'principle': 'Elements that are similar in nature are presented and used in a similar way.',
         'rationale': (
             'Consistency leverages familiarity to reduce the mental effort '
             'required to understand the code.'
         ),
-        'codes': BE_CONSISTENT,
+        'codes': CONSISTENT_CODE,
     },
-    'no_unused_content': {
-        'name': 'No Unused Content',
+    'used_content': {
+        'name': 'Used Content',
         'principle': 'All elements that are introduced are meaningfully used.',
         'rationale': (
-            'Unused code requires unnecessary mental effort — a reader must determine '
-            'whether the unused element is intentional, a mistake, or leftover from '
-            'an earlier version.'
+            'Non-contributing code elements require unnecessary mental effort.'
         ),
-        'codes': NO_UNUSED_CONTENT,
+        'codes': USED_CONTENT,
     },
-    'congruent_implementation': {
-        'name': 'Congruent Implementation',
-        'principle': 'Implementation choices are consistent with the problem to be solved.',
+    'simple_constructs': {
+        'name': 'Simple Constructs',
+        'principle': 'Coding constructs are selected to minimise complexity for the intended reader.',
         'rationale': (
-            'An implementation that reflects the problem is easier to change.'
+            'Code that is perceived by the reader as simple is easier to understand.'
         ),
-        'codes': CONGRUENT_IMPLEMENTATION,
+        'codes': SIMPLE_CONSTRUCTS,
     },
-    'avoid_duplication': {
-        'name': 'Avoid Duplication',
-        'principle': 'Code duplication is avoided.',
+    'minimal_duplication': {
+        'name': 'Minimal Duplication',
+        'principle': 'Code repetition is avoided.',
         'rationale': (
-            'Duplicated code is difficult to change because there is a risk that '
-            'not all instances are updated together.'
+            'Repeated code can be difficult to change because changes need to be made multiple times, '
+            'there is a risk that not all items are changed and/or difficult to understand because you '
+            'have to read more of it.'
         ),
-        'codes': AVOID_DUPLICATION,
+        'codes': MINIMAL_DUPLICATION,
     },
     'modular_structure': {
         'name': 'Modular Structure',
-        'principle': 'Related code is grouped together and dependencies between groups are minimised.',
+        'principle': 'Related code is grouped together and dependencies between groups minimised.',
         'rationale': (
             'Placing related elements together makes code easier to understand. '
-            'Reducing interconnectedness means isolated pieces can be understood '
-            'and modified independently.'
+            'Reducing inter-connectedness means that isolated pieces can be more easily understood '
+            'and can be modified independently.'
         ),
         'codes': MODULAR_STRUCTURE,
+    },
+    'problem_alignment': {
+        'name': 'Problem Alignment',
+        'principle': 'Implementation choices are consistent with the problem to be solved.',
+        'rationale': (
+            'An implementation that reflects the problem is easier to understand and change.'
+        ),
+        'codes': PROBLEM_ALIGNMENT,
     },
 }

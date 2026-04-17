@@ -3,21 +3,45 @@ from cqp_checker import check_principles
 
 # -----------------------------------------------------------------------
 # Configure which CQP principles to check for this question.
-# Add or remove keys to match the learning objectives of the question.
 #
-# Available keys:
-#   'explanatory_language'
-#   'clear_layout'
-#   'simple_constructs'
-#   'be_consistent'
-#   'no_unused_content'
-#   'congruent_implementation'
-#   'avoid_duplication'
-#   'modular_structure'
+# Set via Template Parameters (JSON) in the question authoring form:
+#   {"cqp_principles": ["clear_presentation", "explanatory_language"]}
+#
+# Or use a single principle:
+#   {"cqp_principles": "used_content"}
+#
+# Available principle keys:
+#   'clear_presentation'    - Layout, formatting, indentation
+#   'explanatory_language'  - Naming, docstrings, comments
+#   'consistent_code'       - Consistent style choices
+#   'used_content'          - No unused imports/variables
+#   'simple_constructs'     - Minimize complexity
+#   'minimal_duplication'   - Avoid code repetition
+#   'modular_structure'     - Good function/class design
+#   'problem_alignment'     - Implementation matches problem
+#
+# If no parameters are provided, defaults to all principles.
 # -----------------------------------------------------------------------
+
+# Read from template parameters, with fallback to all principles
+{% if cqp_principles is defined %}
+{% if cqp_principles is iterable %}
+ACTIVE_PRINCIPLES = [{% for p in cqp_principles %}'{{ p }}'{% if not loop.last %}, {% endif %}{% endfor %}]
+{% else %}
+ACTIVE_PRINCIPLES = ['{{ cqp_principles }}']
+{% endif %}
+{% else %}
 ACTIVE_PRINCIPLES = [
-    'no_unused_content',
+    'clear_presentation',
+    'explanatory_language',
+    'consistent_code',
+    'used_content',
+    'simple_constructs',
+    'minimal_duplication',
+    'modular_structure',
+    'problem_alignment',
 ]
+{% endif %}
 
 
 def code_ok(source_code):
