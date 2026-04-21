@@ -88,7 +88,7 @@ def _parse_violations(output, codes_map):
 
 def check_principles(source_code, principle_keys):
     """
-    Run pylint against source_code for each principle in principle_keys
+    Run pylint once against source_code for all active principles combined
     and return a list of PrincipleResult dicts (one per principle,
     regardless of whether violations were found).
 
@@ -97,33 +97,33 @@ def check_principles(source_code, principle_keys):
 
     Unknown keys are silently skipped.
     """
+    valid = {k: PRINCIPLES[k] for k in principle_keys if k in PRINCIPLES}
+
+    # Build combined codes map and reverse lookup: code -> principle_key
+    all_codes = {}
+    code_to_principle = {}
+    for key, principle in valid.items():
+        for code, (_, explanation) in principle['codes'].items():
+            all_codes[code] = ('', explanation)
+            code_to_principle[code] = key
+
+    # Single pylint invocation across all active codes
+    by_principle = {key: [] for key in valid}
+    if all_codes:
+        output = _run_pylint(source_code, list(all_codes.keys()))
+        for v in _parse_violations(output, all_codes):
+            by_principle[code_to_principle[v['code']]].append(v)
+
     results = []
-
     for key in principle_keys:
-        if key not in PRINCIPLES:
+        if key not in valid:
             continue
-
-        principle = PRINCIPLES[key]
-        codes_map = principle['codes']
-
-        if not codes_map:
-            # Principle has no mapped codes yet — skip pylint call.
-            results.append({
-                'name': principle['name'],
-                'principle': principle['principle'],
-                'rationale': principle['rationale'],
-                'violations': [],
-            })
-            continue
-
-        output = _run_pylint(source_code, list(codes_map.keys()))
-        violations = _parse_violations(output, codes_map)
-
+        principle = valid[key]
         results.append({
             'name': principle['name'],
             'principle': principle['principle'],
             'rationale': principle['rationale'],
-            'violations': violations,
+            'violations': by_principle[key],
         })
 
     return results

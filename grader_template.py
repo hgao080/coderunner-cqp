@@ -1,4 +1,3 @@
-import sys
 import json
 import io
 import contextlib
@@ -80,14 +79,17 @@ def build_feedback_html(results):
     script = (
         "<script>"
         "(function() {"
-        "function applyAnnotations() {"
+        "var attempts = 0;"
+        "var interval = setInterval(function() {"
+        "attempts++;"
         "var divs = document.querySelectorAll('.ace_editor');"
-        "if (divs.length === 0) return;"
-        "var editor = ace.edit(divs[0]);"
-        "var annotations = " + annotations_json + ";"
-        "editor.getSession().setAnnotations(annotations);"
+        "if (divs.length > 0) {"
+        "ace.edit(divs[0]).getSession().setAnnotations(" + annotations_json + ");"
+        "clearInterval(interval);"
+        "} else if (attempts >= 20) {"
+        "clearInterval(interval);"
         "}"
-        "setTimeout(applyAnnotations, 500);"
+        "}, 100);"
         "})();"
         "</script>"
     )
@@ -96,7 +98,7 @@ def build_feedback_html(results):
 
 
 def run_tests():
-    test_results = [["Test", "Expected", "Got", "Pass?"]]
+    test_results = [["Test", "Expected", "Got", "iscorrect"]]
     total = len(__test_cases__)
     passed = 0
 
@@ -105,7 +107,7 @@ def run_tests():
         exec(__student_answer__, exec_env)
     except Exception as e:
         for tc in __test_cases__:
-            test_results.append([tc["testcode"], tc["expected"], str(e), "✗"])
+            test_results.append([tc["testcode"], tc["expected"], str(e), 0])
         return 0, test_results
 
     for tc in __test_cases__:
@@ -118,9 +120,9 @@ def run_tests():
             got = buf.getvalue().strip()
             ok = got == expected
             passed += 1 if ok else 0
-            test_results.append([testcode, expected, got, "✓" if ok else "✗"])
+            test_results.append([testcode, expected, got, 1 if ok else 0])
         except Exception as e:
-            test_results.append([testcode, expected, str(e), "✗"])
+            test_results.append([testcode, expected, str(e), 0])
 
     fraction = passed / total if total > 0 else 0
     return fraction, test_results
@@ -132,10 +134,14 @@ failed = [r for r in results if r.get("violations")]
 
 if failed:
     feedback_html = build_feedback_html(results)
+    placeholder_rows = [["Test", "Expected", "Got", "iscorrect"]] + [
+        [tc["testcode"], tc["expected"], "— style check failed —", 0]
+        for tc in __test_cases__
+    ]
     outcome = {
         "fraction": 0,
         "epiloguehtml": feedback_html,
-        "testresults": []
+        "testresults": placeholder_rows
     }
 else:
     fraction, test_results = run_tests()
