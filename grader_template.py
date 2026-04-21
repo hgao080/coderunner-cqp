@@ -77,6 +77,7 @@ def build_feedback_html(results):
     # We retrieve the existing Ace instance via ace.edit() which returns the
     # existing instance if the element has already been initialised.
     script = (
+        "<style>.ace_tooltip { white-space: pre-wrap !important; max-width: 400px !important; word-break: break-word !important; }</style>"
         "<script>"
         "(function() {"
         "var attempts = 0;"
