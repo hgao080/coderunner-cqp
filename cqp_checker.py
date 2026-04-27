@@ -1,5 +1,5 @@
 """
-cqp_checker.py — Core logic for CQP-based Pylint feedback.
+cqp_checker.py — Core logic for CQP-based Pylint + pycodestyle feedback.
 
 Intended to be uploaded as a CodeRunner support file so it is available
 in the working directory when the grader template runs.
@@ -9,7 +9,7 @@ Public interface:
 
 Each PrincipleResult is a dict:
     {
-        'name':      str,               # e.g. "No Unused Content"
+        'name':      str,               # e.g. "Clear Presentation"
         'principle': str,               # one-line principle statement
         'rationale': str,               # why this principle matters
         'violations': list[Violation],  # may be empty
@@ -17,54 +17,106 @@ Each PrincipleResult is a dict:
 
 Each Violation is a dict:
     {
-        'code':        str,  # e.g. "W0611"
+        'code':        str,  # e.g. "W0611" or "E225"
         'line_no':     str,  # line number as string
-        'raw':         str,  # the raw pylint output line
+        'raw':         str,  # the raw tool output line
         'explanation': str,  # pedagogical explanation for the student
     }
+
+Tool routing:
+    Codes in PYCODESTYLE_CODES  → pycodestyle subprocess
+    Codes in CUSTOM_CODES       → cqp_custom_checkers.run_custom_checks()
+    All other codes             → Pylint subprocess
+    All three tools share the same source.py file and their output is parsed
+    by the same regex, then merged before being attributed to a principle.
 """
 
+import os
 import re
 import subprocess
-import os
 
-from cqp_principles import PRINCIPLES
+from cqp_principles import CUSTOM_CODES, PRINCIPLES, PYCODESTYLE_CODES
 
 
-def _run_pylint(source_code, codes):
-    """
-    Write source_code to source.py and run pylint restricted to the
-    given set of message codes. Returns the raw stdout+stderr string.
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
 
-    Raises FileNotFoundError if pylint is not installed.
-    """
+def _write_source(source_code):
+    """Write source_code to source.py in the current working directory."""
     with open('source.py', 'w') as f:
         f.write(source_code)
 
+
+def _run_pylint(codes):
+    """
+    Run Pylint restricted to the given set of message codes against the
+    already-written source.py. Returns raw stdout+stderr string.
+
+    Pylint exits non-zero when violations are found — this is expected and
+    handled via CalledProcessError.
+    """
     env = os.environ.copy()
     env['HOME'] = os.getcwd()
-
     enabled = ','.join(codes)
     cmd = ['pylint', '--disable=all', f'--enable={enabled}', 'source.py']
-
     try:
-        output = subprocess.check_output(
+        return subprocess.check_output(
             cmd, universal_newlines=True, stderr=subprocess.STDOUT, env=env
         )
     except subprocess.CalledProcessError as e:
-        # Pylint exits non-zero when violations are found — this is expected.
-        output = e.output
+        return e.output
 
-    return output
+
+def _run_pycodestyle(codes):
+    """
+    Run pycodestyle restricted to the given set of message codes against the
+    already-written source.py. Returns raw stdout string.
+
+    pycodestyle exits non-zero when violations are found — handled via
+    CalledProcessError. We pass --select to restrict to only the codes we
+    care about so we don't surface codes that aren't mapped to any principle.
+    """
+    select = ','.join(codes)
+    cmd = ['python3', '-m', 'pycodestyle', f'--select={select}', 'source.py']
+    try:
+        return subprocess.check_output(
+            cmd, universal_newlines=True, stderr=subprocess.STDOUT
+        )
+    except subprocess.CalledProcessError as e:
+        return e.output
+    except FileNotFoundError:
+        # pycodestyle not installed — return empty output gracefully so
+        # Pylint-only principles still work.
+        return ''
+
+
+def _run_custom(source_code, codes):
+    """
+    Run custom checkers for the given set of W90xx code strings against
+    source_code. Returns a raw output string in the same format as Pylint
+    and pycodestyle so it can be fed directly into _parse_violations.
+
+    Imports cqp_custom_checkers lazily so the rest of the tool continues
+    to work if that support file is not deployed.
+    """
+    try:
+        from cqp_custom_checkers import run_custom_checks
+        return run_custom_checks(source_code, codes)
+    except ImportError:
+        return ''
 
 
 def _parse_violations(output, codes_map):
     """
-    Parse raw pylint output and return a list of Violation dicts for
-    codes that appear in codes_map.
+    Parse raw tool output and return a list of Violation dicts for codes
+    that appear in codes_map.
 
-    Pylint output format:
-        source.py:LINE:COL: CODE (symbolic-name) message text
+    Both Pylint and pycodestyle use the same output format:
+        filename:LINE:COL: CODE message-text
+
+    The regex captures LINE and CODE regardless of which tool produced the
+    line, so this function works identically for both.
     """
     violations = []
     pattern = re.compile(r':(\d+):\d+: ([A-Z]\d+)')
@@ -86,20 +138,29 @@ def _parse_violations(output, codes_map):
     return violations
 
 
+# ---------------------------------------------------------------------------
+# Public interface
+# ---------------------------------------------------------------------------
+
 def check_principles(source_code, principle_keys):
     """
-    Run pylint once against source_code for all active principles combined
-    and return a list of PrincipleResult dicts (one per principle,
-    regardless of whether violations were found).
+    Run Pylint and pycodestyle against source_code for all active principles
+    and return a list of PrincipleResult dicts (one per principle, regardless
+    of whether violations were found).
 
     principle_keys: list of strings matching keys in PRINCIPLES, e.g.
-        ['no_unused_content', 'clear_layout']
+        ['clear_presentation', 'used_content']
 
     Unknown keys are silently skipped.
+
+    All three runners are each invoked at most once, covering all active codes
+    in a single call per tool. Their violations are merged, then attributed
+    back to the principle that owns each code.
     """
     valid = {k: PRINCIPLES[k] for k in principle_keys if k in PRINCIPLES}
 
-    # Build combined codes map and reverse lookup: code -> principle_key
+    # Build a unified codes_map: code -> ('', explanation)
+    # and a reverse lookup:    code -> principle_key
     all_codes = {}
     code_to_principle = {}
     for key, principle in valid.items():
@@ -107,13 +168,33 @@ def check_principles(source_code, principle_keys):
             all_codes[code] = ('', explanation)
             code_to_principle[code] = key
 
-    # Single pylint invocation across all active codes
-    by_principle = {key: [] for key in valid}
-    if all_codes:
-        output = _run_pylint(source_code, list(all_codes.keys()))
-        for v in _parse_violations(output, all_codes):
-            by_principle[code_to_principle[v['code']]].append(v)
+    # Split codes by tool
+    pylint_codes = [c for c in all_codes if c not in PYCODESTYLE_CODES and c not in CUSTOM_CODES]
+    pcs_codes = [c for c in all_codes if c in PYCODESTYLE_CODES]
+    custom_codes = [c for c in all_codes if c in CUSTOM_CODES]
 
+    # Collect violations from each tool into per-principle buckets
+    by_principle = {key: [] for key in valid}
+
+    if pylint_codes or pcs_codes or custom_codes:
+        _write_source(source_code)
+
+        if pylint_codes:
+            output = _run_pylint(pylint_codes)
+            for v in _parse_violations(output, all_codes):
+                by_principle[code_to_principle[v['code']]].append(v)
+
+        if pcs_codes:
+            output = _run_pycodestyle(pcs_codes)
+            for v in _parse_violations(output, all_codes):
+                by_principle[code_to_principle[v['code']]].append(v)
+
+        if custom_codes:
+            output = _run_custom(source_code, custom_codes)
+            for v in _parse_violations(output, all_codes):
+                by_principle[code_to_principle[v['code']]].append(v)
+
+    # Build results list in the order principle_keys were requested
     results = []
     for key in principle_keys:
         if key not in valid:

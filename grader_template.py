@@ -30,6 +30,7 @@ __test_cases__ = [
     {
         "testcode": """{{ TEST.testcode | e("py") }}""",
         "expected": """{{ TEST.expected | e("py") }}""",
+        "stdin": """{{ TEST.stdin | e("py") }}""",
     },
 {% endfor %}
 ]
@@ -104,6 +105,11 @@ def run_tests():
     passed = 0
 
     exec_env = {}
+
+    def _no_stdin_input(prompt=''):
+        raise EOFError("input() called at module level — move input() calls inside a function")
+
+    exec_env['input'] = _no_stdin_input
     try:
         exec(__student_answer__, exec_env)
     except Exception as e:
@@ -114,10 +120,14 @@ def run_tests():
     for tc in __test_cases__:
         testcode = tc["testcode"]
         expected = tc["expected"].strip()
+        stdin_text = tc.get("stdin", "") or ""
+        stdin_lines = stdin_text.splitlines()
         try:
             buf = io.StringIO()
+            test_env = dict(exec_env)
+            test_env['input'] = make_fake_input(stdin_lines, buf)
             with contextlib.redirect_stdout(buf):
-                exec(testcode, dict(exec_env))
+                exec(testcode, test_env)
             got = buf.getvalue().strip()
             ok = got == expected
             passed += 1 if ok else 0
@@ -129,7 +139,23 @@ def run_tests():
     return fraction, test_results
 
 
+def make_fake_input(stdin_lines, stdout_buf):
+    iterator = iter(stdin_lines)
+
+    def fake_input(prompt=''):
+        stdout_buf.write(str(prompt))
+        try:
+            value = next(iterator)
+        except StopIteration:
+            raise EOFError("No more input lines available for this test case")
+        stdout_buf.write(value + '\n')
+        return value
+
+    return fake_input
+
+
 # --- Main grading logic ---
+{% if IS_PRECHECK %}
 results = check_principles(__student_answer__, ACTIVE_PRINCIPLES)
 failed = [r for r in results if r.get("violations")]
 
@@ -145,11 +171,18 @@ if failed:
         "testresults": placeholder_rows
     }
 else:
-    fraction, test_results = run_tests()
     outcome = {
-        "fraction": fraction,
-        "epiloguehtml": "",
-        "testresults": test_results
+        "fraction": 1,
+        "epiloguehtml": "<p><b>Style check passed.</b> Submit your answer when ready.</p>",
+        "testresults": [["Style Check", "Pass", "Pass", 1]]
     }
+{% else %}
+fraction, test_results = run_tests()
+outcome = {
+    "fraction": fraction,
+    "epiloguehtml": "",
+    "testresults": test_results
+}
+{% endif %}
 
 print(json.dumps(outcome))
