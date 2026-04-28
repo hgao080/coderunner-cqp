@@ -90,6 +90,7 @@ CLEAR_PRESENTATION = {
         "There is trailing whitespace on this line. While invisible, it adds "
         "noise to diffs and version history, making changes harder to follow."
     ),
+    # Could potentially be removed
     'C0304': (
         'missing-final-newline',
         "The file does not end with a newline. This is a widely expected "
@@ -324,6 +325,7 @@ CLEAR_PRESENTATION = {
 #               understandability.
 # ---------------------------------------------------------------------------
 EXPLANATORY_LANGUAGE = {
+    # C0103 / C0104 need to be checked
     'C0103': (
         'invalid-name',
         "This name doesn't follow the expected naming convention. "

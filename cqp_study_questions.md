@@ -2,7 +2,7 @@
 
 Two sets of questions for COMPSCI 101 (Principles of Programming), University of Auckland. Each question uses the custom `grader_template.py` which runs Pylint / pycodestyle / custom checks before executing functional test cases. Style violations must be resolved before the test score is awarded.
 
-All questions use **type `python3`**. The grader blocks `input()` at module level, so all submissions must be function-based. Early-semester questions provide a function stub for students to complete, which is standard scaffolding in CS1 regardless of whether functions have been formally taught.
+All questions use **type `python3_cqp`**. The grader blocks `input()` at module level, so all submissions must be function-based. Early-semester questions provide a function stub for students to complete, which is standard scaffolding in CS1 regardless of whether functions have been formally taught.
 
 Guidelines are referenced by ID from Tables 5 and 6 of: Kirk, Luxton-Reilly & Tempero, *Distilling PEP 8 for Teaching Introductory Programming*, ACE 2025.
 
@@ -476,13 +476,204 @@ def count_vowels(text):
 
 ---
 
+### B3 — Consistent Code: Season Finder
+
+**Question type**: `python3`
+
+**Justification**: A multi-branch classifier returning season names is the cleanest CS1 vehicle for the Consistent Code principle. Mixed quote style arises naturally when students type return strings from different sources. A bare `return` in the else branch arises when students forget that all branches must return a value, making the inconsistency a real logic bug. The task uses `in` with a list — a construct different from the comparison chains in A2 — so there is no structural overlap with existing questions.
+
+---
+
+**Task description (shown to student)**:
+
+Complete the function below. It receives a month number (1–12) and should **return** the name of the corresponding meteorological season: `"winter"` for December–February (months 12, 1, 2), `"spring"` for March–May, `"summer"` for June–August, and `"autumn"` for September–November.
+
+Include a brief description of your file at the very top. Do **not** add any `input()` calls.
+
+```python
+def get_season(month):
+    pass
+```
+
+---
+
+**Target guidelines and CQP/CSM mapping**:
+
+| Primer ID | Guideline | CSM Principle | CQP key |
+|-----------|-----------|--------------|---------|
+| 29 | Pick a quote style (single or double) and stick to it | Consistent Code | `consistent_code` |
+| 40 | Be consistent in return statements (all return an expression or none do) | Consistent Code | `consistent_code` |
+| 32 | When breaking a long expression across lines, always place the operator at the same position | Consistent Code | `consistent_code` |
+
+**Template parameters**: `{"cqp_principles": ["consistent_code"]}`
+
+---
+
+**Bad answer** (realistic beginner — mixes quote styles when transcribing string literals, forgets to return a value in the final else branch):
+
+```python
+def get_season(month):
+    """Return the season for the given month number."""
+    if month in [12, 1, 2]:
+        return 'winter'
+    elif month in [3, 4, 5]:
+        return "spring"
+    elif month in [6, 7, 8]:
+        return 'summer'
+    elif month in [9, 10, 11]:
+        return "autumn"
+    else:
+        return
+```
+
+**Violations triggered**:
+- `W9003` — `'winter'` and `'summer'` use single quotes while `"spring"` and `"autumn"` use double quotes → **consistent_code** (ID 29)
+- `R1710` — four branches return a string but the `else` branch has a bare `return` (returns `None`) → **consistent_code** (ID 40)
+
+Note: `W9004` (operator line break consistency) is part of the `consistent_code` principle but is not triggered by this answer because all expressions fit on a single line. It would appear in a student submission with very long multi-line expressions that use inconsistent break placement — before operators in some places and after operators in others.
+
+Note: the bare `return` also makes `get_season` logically incorrect for any month outside 1–11 (returns `None` instead of a season name). This is intentional — R1710 catches a real bug masquerading as a style issue, which is a strong teaching moment about why consistent return statements matter.
+
+---
+
+**Good answer**:
+
+```python
+"""Season classification functions."""
+
+
+def get_season(month):
+    """Return the season name for the given month number (1–12)."""
+    if month in [12, 1, 2]:
+        return "winter"
+    elif month in [3, 4, 5]:
+        return "spring"
+    elif month in [6, 7, 8]:
+        return "summer"
+    else:
+        return "autumn"
+```
+
+---
+
+**Test case table**:
+
+| Test # | Standard Input | Test code | Expected output | Visibility |
+|--------|---------------|-----------|----------------|------------|
+| 1 | — | `print(get_season(1))` | `winter` | visible |
+| 2 | — | `print(get_season(4))` | `spring` | visible |
+| 3 | — | `print(get_season(7))` | `summer` | hidden |
+| 4 | — | `print(get_season(10))` | `autumn` | hidden |
+| 5 | — | `print(get_season(12))` | `winter` | hidden (December in winter) |
+| 6 | — | `print(get_season(2))` | `winter` | hidden (February boundary) |
+| 7 | — | `print(get_season(9))` | `autumn` | hidden (start of autumn) |
+
+---
+
+**Set A vs Set B note**: A principle-organised question signals that consistency is the explicit focus, independent of the programming construct. B3 uses a multi-branch classifier — a structure already familiar from A2 (Conditionals) — so students are not challenged by new control-flow complexity. Any consistency violations are therefore attributable to style habits rather than task confusion. Comparing B3 data with A2 data can test whether framing a question around Consistent Code (vs. treating it as one of several simultaneously-flagged principles) changes the rate at which students adopt uniform quote style and complete return statements. A longitudinal study could also use B3 as a delayed assessment — administered after A2 — to measure whether the style feedback from A2 transfers to a new task assessed on consistency alone.
+
+---
+
+### B4 — Used Content: Digit Counter
+
+**Question type**: `python3`
+
+**Justification**: A loop over a string counting characters is the minimum task for which three distinct used-content violations arise naturally: an unused import (student imports `string` or `math` while exploring potential helpers), an unused variable (student computes a total intending to use it in a ratio but then just returns the count), and unreachable code (student leaves a debug `print` after the return statement). The task structure is deliberately familiar — identical in shape to B2 (Vowel Counter) — so cognitive load from the programming challenge is low and any redundancy violations are clearly attributable to code-hygiene habits.
+
+---
+
+**Task description (shown to student)**:
+
+Complete the function below. It receives a string and should **return** the number of digit characters (0–9) it contains.
+
+Include a brief description of your file at the very top. Do **not** add any `input()` calls.
+
+```python
+def count_digits(text):
+    pass
+```
+
+---
+
+**Target guidelines and CQP/CSM mapping**:
+
+| Primer ID | Guideline | CSM Principle | CQP key |
+|-----------|-----------|--------------|---------|
+| Non-redundant Content | Remove imports that are not used anywhere in the file | Used Content | `used_content` |
+| Non-redundant Content | Remove variables that are assigned but whose value is never read | Used Content | `used_content` |
+| Non-redundant Content | Remove code that can never be executed | Used Content | `used_content` |
+
+**Template parameters**: `{"cqp_principles": ["used_content"]}`
+
+---
+
+**Bad answer** (realistic beginner — imports modules "just in case", computes a total that never gets used, leaves a debug print after the return):
+
+```python
+import string
+import math
+
+def count_digits(text):
+    """Return the number of digit characters in the text."""
+    digit_count = 0
+    total_chars = len(text)
+    for char in text:
+        if char.isdigit():
+            digit_count = digit_count + 1
+    return digit_count
+    print("Done")
+```
+
+**Violations triggered**:
+- `W0611` × 2 — `string` and `math` are imported but used nowhere in the file → **used_content**
+- `W0612` — `total_chars` is assigned but its value is never read → **used_content**
+- `W0101` — `print("Done")` appears after `return digit_count` and can never execute → **used_content**
+
+The pattern is realistic: a beginner imports `string` and `math` while exploring potential helpers, calculates `total_chars` intending to compute a ratio (e.g., percentage of digits) but then just returns the raw count, and leaves a debugging print after the return without noticing it is unreachable.
+
+---
+
+**Good answer**:
+
+```python
+"""Text analysis utility functions."""
+
+
+def count_digits(text):
+    """Return the number of digit characters in the text."""
+    digit_count = 0
+    for char in text:
+        if char.isdigit():
+            digit_count = digit_count + 1
+    return digit_count
+```
+
+---
+
+**Test case table**:
+
+| Test # | Standard Input | Test code | Expected output | Visibility |
+|--------|---------------|-----------|----------------|------------|
+| 1 | — | `print(count_digits("hello123"))` | `3` | visible |
+| 2 | — | `print(count_digits("abc"))` | `0` | visible |
+| 3 | — | `print(count_digits("1234567890"))` | `10` | hidden |
+| 4 | — | `print(count_digits(""))` | `0` | hidden (empty string) |
+| 5 | — | `print(count_digits("abc123def456"))` | `6` | hidden |
+| 6 | — | `print(count_digits("Python3"))` | `1` | hidden (mixed case) |
+
+---
+
+**Set A vs Set B note**: Organising by the Used Content principle makes redundancy the explicit focus rather than an incidental check embedded alongside naming and layout. The task — a character-counting loop — is structurally identical to B2 (Vowel Counter), so any redundancy violations arise from code-hygiene habits rather than unfamiliar constructs. Data from B4 compared with A3 can reveal whether explicitly framing the question around Used Content changes the rate at which students remove unused imports and dead code — in A3, `used_content` is one of four simultaneously-checked principles, making it easy for a student to overlook. B4 data is most valuable in a cross-sectional analysis (what fraction of the cohort leaves unused elements at a given point in the semester?) while A3 data is most valuable longitudinally (does the rate of used-content violations decline as topic complexity grows and students are repeatedly reminded via style feedback?).
+
+---
+
 ## Deployment notes
 
 **CodeRunner question editor settings for all five questions**:
 
 | Field | Value |
 |-------|-------|
-| Question type | `python3` |
+| Question type | `python3_cqp` |
 | Support files | `cqp_principles.py`, `cqp_checker.py`, `grader_template.py` |
 | Grader template | contents of `grader_template.py` |
 | Template params | see each question above |
@@ -501,10 +692,11 @@ def count_vowels(text):
 | 19 (comment `# `) | `E265` | `clear_presentation` |
 | 29 (quote style) | `W9003` | `consistent_code` |
 | 31 (operator spacing) | `E225` | `clear_presentation` |
+| 32 (operator line break) | `W9004` | `consistent_code` |
 | 33 (`is not`) | `C0113` | `simple_constructs` |
 | 34 (bool comparison) | `C0121` | `simple_constructs` |
 | 36 (extraneous whitespace) | `E201`, `E202`, `E203`, `E231` | `clear_presentation` |
 | 37–38 (function names, blank lines) | `C0103`, `E302` | `explanatory_language`, `clear_presentation` |
 | 40 (consistent returns) | `R1710` | `consistent_code` |
 | 41 (parameter names) | `C0103` | `explanatory_language` |
-| Non-redundant Content | `W0611` (unused import) | `used_content` |
+| Non-redundant Content | `W0101` (unreachable), `W0104` (pointless-statement), `W0107` (unnecessary-pass), `W0401` (wildcard-import), `W0404` (reimported), `W0611` (unused-import), `W0612` (unused-variable), `W0613` (unused-argument), `W0614` (unused-wildcard-import) | `used_content` |
