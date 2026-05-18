@@ -3,6 +3,8 @@ import io
 import contextlib
 from cqp_checker import check_principles
 
+_exec = exec
+
 {% if cqp_principles is defined %}
 {% if cqp_principles is iterable %}
 ACTIVE_PRINCIPLES = [{% for p in cqp_principles %}'{{ p }}'{% if not loop.last %}, {% endif %}{% endfor %}]
@@ -111,7 +113,7 @@ def run_tests():
 
     exec_env['input'] = _no_stdin_input
     try:
-        exec(__student_answer__, exec_env)
+        _exec(__student_answer__, exec_env)
     except Exception as e:
         for tc in __test_cases__:
             test_results.append([tc["testcode"], tc["expected"], str(e), 0])
@@ -127,7 +129,7 @@ def run_tests():
             test_env = dict(exec_env)
             test_env['input'] = make_fake_input(stdin_lines, buf)
             with contextlib.redirect_stdout(buf):
-                exec(testcode, test_env)
+                _exec(testcode, test_env)
             got = buf.getvalue().strip()
             ok = got == expected
             passed += 1 if ok else 0

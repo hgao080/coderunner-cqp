@@ -31,7 +31,6 @@ Tool routing:
     by the same regex, then merged before being attributed to a principle.
 """
 
-import os
 import re
 import subprocess
 
@@ -42,46 +41,43 @@ from cqp_principles import CUSTOM_CODES, PRINCIPLES, PYCODESTYLE_CODES
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _write_source(source_code):
-    """Write source_code to source.py in the current working directory."""
-    with open('source.py', 'w') as f:
-        f.write(source_code)
-
-
-def _run_pylint(codes):
+def _run_pylint(codes, source_code):
     """
-    Run Pylint restricted to the given set of message codes against the
-    already-written source.py. Returns raw stdout+stderr string.
+    Run Pylint restricted to the given set of message codes against
+    source_code supplied via stdin. Returns raw stdout+stderr string.
 
     Pylint exits non-zero when violations are found — this is expected and
     handled via CalledProcessError.
     """
-    env = os.environ.copy()
-    env['HOME'] = os.getcwd()
     enabled = ','.join(codes)
-    cmd = ['pylint', '--disable=all', f'--enable={enabled}', 'source.py']
+    cmd = [
+        'pylint', '--disable=all', f'--enable={enabled}',
+        '--rcfile=/dev/null', '--persistent=n', '--from-stdin', 'source.py',
+    ]
     try:
         return subprocess.check_output(
-            cmd, universal_newlines=True, stderr=subprocess.STDOUT, env=env
+            cmd, input=source_code, universal_newlines=True,
+            stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError as e:
         return e.output
 
 
-def _run_pycodestyle(codes):
+def _run_pycodestyle(codes, source_code):
     """
-    Run pycodestyle restricted to the given set of message codes against the
-    already-written source.py. Returns raw stdout string.
+    Run pycodestyle restricted to the given set of message codes against
+    source_code supplied via stdin. Returns raw stdout string.
 
     pycodestyle exits non-zero when violations are found — handled via
     CalledProcessError. We pass --select to restrict to only the codes we
     care about so we don't surface codes that aren't mapped to any principle.
     """
     select = ','.join(codes)
-    cmd = ['python3', '-m', 'pycodestyle', f'--select={select}', 'source.py']
+    cmd = ['python3', '-m', 'pycodestyle', f'--select={select}', '-']
     try:
         return subprocess.check_output(
-            cmd, universal_newlines=True, stderr=subprocess.STDOUT
+            cmd, input=source_code, universal_newlines=True,
+            stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError as e:
         return e.output
@@ -176,23 +172,20 @@ def check_principles(source_code, principle_keys):
     # Collect violations from each tool into per-principle buckets
     by_principle = {key: [] for key in valid}
 
-    if pylint_codes or pcs_codes or custom_codes:
-        _write_source(source_code)
+    if pylint_codes:
+        output = _run_pylint(pylint_codes, source_code)
+        for v in _parse_violations(output, all_codes):
+            by_principle[code_to_principle[v['code']]].append(v)
 
-        if pylint_codes:
-            output = _run_pylint(pylint_codes)
-            for v in _parse_violations(output, all_codes):
-                by_principle[code_to_principle[v['code']]].append(v)
+    if pcs_codes:
+        output = _run_pycodestyle(pcs_codes, source_code)
+        for v in _parse_violations(output, all_codes):
+            by_principle[code_to_principle[v['code']]].append(v)
 
-        if pcs_codes:
-            output = _run_pycodestyle(pcs_codes)
-            for v in _parse_violations(output, all_codes):
-                by_principle[code_to_principle[v['code']]].append(v)
-
-        if custom_codes:
-            output = _run_custom(source_code, custom_codes)
-            for v in _parse_violations(output, all_codes):
-                by_principle[code_to_principle[v['code']]].append(v)
+    if custom_codes:
+        output = _run_custom(source_code, custom_codes)
+        for v in _parse_violations(output, all_codes):
+            by_principle[code_to_principle[v['code']]].append(v)
 
     # Build results list in the order principle_keys were requested
     results = []

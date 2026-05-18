@@ -17,7 +17,6 @@ code is kept (Pylint explanations are richer). The suppressed pycodestyle
 equivalents are noted in comments.
     C0301  supersedes  E501   (line too long)
     C0321  supersedes  E701/E702  (multiple statements)
-    W0301  supersedes  E703   (unnecessary semicolon)
     C0113  supersedes  E714   (not ... is → is not)
     C0121  supersedes  E711   (== None)
     C0121  supersedes  E712   (== True/False)
@@ -57,6 +56,8 @@ CUSTOM_CODES = frozenset({
     'W9003',   # inconsistent-quote-style
     'W9004',   # inconsistent-operator-line-break
     'W9005',   # constant-in-function-scope
+    'W9006',   # ambiguous-variable-name
+    'W9007',   # block-comment-wrong-indent
 })
 
 
@@ -79,40 +80,11 @@ CLEAR_PRESENTATION = {
         "structure of the code at a glance."
         # Supersedes pycodestyle E501.
     ),
-    'C0302': (
-        'too-many-lines',
-        "This module is very long. A file with too many lines is harder to "
-        "navigate and understand as a whole. Consider splitting related code "
-        "into separate modules."
-    ),
-    'C0303': (
-        'trailing-whitespace',
-        "There is trailing whitespace on this line. While invisible, it adds "
-        "noise to diffs and version history, making changes harder to follow."
-    ),
-    # Could potentially be removed
-    'C0304': (
-        'missing-final-newline',
-        "The file does not end with a newline. This is a widely expected "
-        "convention that some tools rely on and which keeps file boundaries clear."
-    ),
-    'C0305': (
-        'trailing-newlines',
-        "There are extra blank lines at the end of the file. Trailing blank "
-        "lines add visual clutter and make it unclear where the file ends."
-    ),
     'C0321': (
         'multiple-statements',
         "Multiple statements appear on one line. Placing each statement on its "
         "own line makes the structure of the code easier to follow."
         # Supersedes pycodestyle E701/E702.
-    ),
-    'W0301': (
-        'unnecessary-semicolon',
-        "There is an unnecessary semicolon at the end of this statement. "
-        "Python does not use semicolons to terminate statements — removing it "
-        "keeps the code consistent with standard Python style."
-        # Supersedes pycodestyle E703.
     ),
     'W0311': (
         'bad-indentation',
@@ -121,14 +93,6 @@ CLEAR_PRESENTATION = {
         "incorrect indentation misleads the reader about which block a line "
         "belongs to."
     ),
-    'C0410': (
-        'multiple-imports',
-        "Multiple modules are imported on a single line. Each import should "
-        "appear on its own line so it is immediately clear what the file "
-        "depends on, for example: 'import os' then 'import sys' on separate "
-        "lines rather than 'import os, sys'."
-    ),
-
     # --- pycodestyle codes ---
 
     'E101': (
@@ -304,6 +268,24 @@ CLEAR_PRESENTATION = {
         "the next logical line. Add extra indentation to distinguish the "
         "continuation from the block body."
     ),
+
+    # --- Custom codes ---
+
+    'W9001': (
+        'docstring-closing-quote-placement',
+        "The closing '\"\"\"' of this docstring is in the wrong position. "
+        "For a one-line docstring everything — opening quotes, text, and "
+        "closing quotes — should be on a single line. For a multiline "
+        "docstring the closing '\"\"\"' should be on a line of its own."
+    ),
+    'W9007': (
+        'block-comment-wrong-indent',
+        "This block comment is not indented to the same level as the code it "
+        "applies to. A block comment should be indented to match the "
+        "indentation of the code that follows it, so the structure of the "
+        "code is visually clear."
+    ),
+
     # NOTE: The following pycodestyle codes are intentionally omitted because
     # they duplicate Pylint checks already mapped above:
     #   E501  (line-too-long)              superseded by C0301
@@ -340,33 +322,12 @@ EXPLANATORY_LANGUAGE = {
         "meaning. Choose a name that describes what the element represents or "
         "stores."
     ),
-    'C0114': (
-        'missing-module-docstring',
-        "This module has no docstring. A brief description at the top of a "
-        "file orients the reader before they read any code."
+    'W9006': (
+        'ambiguous-variable-name',
+        "The names 'l' (lowercase el), 'O' (uppercase oh), and 'I' (uppercase "
+        "eye) are easily confused with the digits 1, 0, and 1 respectively. "
+        "Choose a more distinctive name that cannot be misread at a glance."
     ),
-    'C0116': (
-        'missing-function-docstring',
-        "This function has no docstring. A docstring explains what the "
-        "function does and how to use it, so a reader doesn't need to read "
-        "the body to understand its purpose."
-    ),
-    'W0622': (
-        'redefined-builtin',
-        "This name shadows a Python built-in (such as list, str, or input). "
-        "Reusing a built-in name hides the standard function or type from the "
-        "rest of the code. Choose a name that describes what this element "
-        "represents without conflicting with a familiar Python name."
-    ),
-    'W9001': (
-        'docstring-closing-quote-placement',
-        "The closing '\"\"\"' of this docstring is in the wrong position. "
-        "For a one-line docstring everything — opening quotes, text, and "
-        "closing quotes — should be on a single line. For a multiline "
-        "docstring the closing '\"\"\"' should be on a line of its own."
-    ),
-    # NOTE: C0115 (missing-class-docstring) is intentionally omitted —
-    # classes are outside the scope of the CS1 primer (Kirk et al., Table 2).
 }
 
 # ---------------------------------------------------------------------------
@@ -409,60 +370,9 @@ CONSISTENT_CODE = {
 #               effort.
 # ---------------------------------------------------------------------------
 USED_CONTENT = {
-    'W0101': (
-        'unreachable',
-        "This code can never be executed — it appears after a return or raise. "
-        "Unreachable code misleads the reader into thinking it has an effect."
-    ),
-    'W0104': (
-        'pointless-statement',
-        "This statement has no effect — it evaluates an expression but does "
-        "not assign the result or use it anywhere. A reader will spend time "
-        "trying to understand what it is meant to do. Either store the result "
-        "or remove the statement."
-    ),
-    'W0107': (
-        'unnecessary-pass',
-        "This 'pass' statement does nothing and adds no meaning. "
-        "Remove it unless it's the sole statement in a block that requires one."
-    ),
-    'W0401': (
-        'wildcard-import',
-        "This import uses a wildcard ('from module import *'), which pulls in "
-        "every name from the module at once. This makes it impossible to tell "
-        "where any given name comes from and clutters the namespace with names "
-        "that may never be used. Import only the specific names you need."
-    ),
-    'W0404': (
-        'reimported',
-        "This name has already been imported earlier in the file. Importing "
-        "something twice adds confusion — a reader may wonder whether the "
-        "second import is intentional or a mistake. Remove the duplicate."
-    ),
-    'W0611': (
-        'unused-import',
-        "You've imported something that isn't used anywhere in your code. "
-        "Unused imports force a reader to wonder whether the import matters — "
-        "remove it to keep your code clear."
-    ),
-    'W0612': (
-        'unused-variable',
-        "You've declared a variable that is never read. A reader will spend "
-        "time trying to understand its purpose. Either use it, or remove it."
-    ),
-    'W0613': (
-        'unused-argument',
-        "A function parameter is never used inside the function body. This "
-        "suggests the function signature doesn't match its implementation. "
-        "Consider removing the parameter or using it."
-    ),
-    'W0614': (
-        'unused-wildcard-import',
-        "A wildcard import has brought in names that are never used anywhere "
-        "in your code. Beyond the problem of using a wildcard import at all, "
-        "these unused names add unnecessary clutter. Import only what you "
-        "need, by name."
-    ),
+    # No CS1 primer guidelines (Kirk et al., Tables 5 & 6) map to this
+    # principle. Codes that were here have been removed to keep mappings
+    # consistent with the documented guidelines.
 }
 
 # ---------------------------------------------------------------------------
@@ -489,29 +399,6 @@ SIMPLE_CONSTRUCTS = {
         "idiom."
         # Supersedes pycodestyle E712.
     ),
-    'C0123': (
-        'unidiomatic-typecheck',
-        "Using type() for a type check is more complex than necessary. "
-        "Using isinstance() is the simpler, more readable Python idiom."
-    ),
-    'R0912': (
-        'too-many-branches',
-        "This function has too many branches (if/elif/else/try). High "
-        "branching makes it hard to follow all possible paths through the "
-        "code. Consider breaking it into smaller functions."
-    ),
-    'R0914': (
-        'too-many-locals',
-        "This function defines too many local variables. A large number of "
-        "variables increases the mental effort needed to track state. Consider "
-        "simplifying or splitting the function."
-    ),
-    'R0915': (
-        'too-many-statements',
-        "This function contains too many statements. Long functions are harder "
-        "to understand in one reading. Breaking it into smaller, focused "
-        "functions improves clarity."
-    ),
     'W9002': (
         'avoidable-backslash-in-string',
         "This string uses a backslash to escape a quote character, but "
@@ -530,16 +417,8 @@ SIMPLE_CONSTRUCTS = {
 #               have to read more of it.
 # ---------------------------------------------------------------------------
 MINIMAL_DUPLICATION = {
-    'R0801': (
-        'duplicate-code',
-        "Similar code appears in more than one place. Duplicated logic means "
-        "that a future change must be made in multiple places, risking "
-        "inconsistency. Consider extracting the shared logic into a function."
-    ),
-    # NOTE: R0801 operates across multiple files and requires a minimum block
-    # size to trigger. For single-file CS1 submissions it will almost never
-    # fire, producing false negatives. It is kept for multi-file submissions
-    # but should not be relied on as a primary duplication check.
+    # No CS1 primer guidelines (Kirk et al., Tables 5 & 6) map to this
+    # principle.
 }
 
 # ---------------------------------------------------------------------------
@@ -552,24 +431,6 @@ MINIMAL_DUPLICATION = {
 #               independently.
 # ---------------------------------------------------------------------------
 MODULAR_STRUCTURE = {
-    'R0911': (
-        'too-many-return-statements',
-        "This function has many return statements, which can make it hard to "
-        "follow all the possible exit paths. Consider restructuring to reduce "
-        "complexity."
-    ),
-    'R0913': (
-        'too-many-arguments',
-        "This function takes too many arguments. A large parameter list often "
-        "signals that a function is doing too much, or that related arguments "
-        "should be grouped into a data structure."
-    ),
-    'W0603': (
-        'global-statement',
-        "Using 'global' creates a hidden dependency between a function and "
-        "the module's global state. This makes the function harder to "
-        "understand in isolation and harder to reuse."
-    ),
     'W9005': (
         'constant-in-function-scope',
         "This name uses ALL_CAPS_WITH_UNDERSCORES, which signals a constant, "
@@ -577,9 +438,6 @@ MODULAR_STRUCTURE = {
         "Constants are usually defined at the top of the file so they are "
         "easy to find and can be shared across functions."
     ),
-    # NOTE: R0902 (too-many-instance-attributes) and R0903 (too-few-public-methods)
-    # are intentionally omitted — both are class-specific and classes are out of
-    # scope for the CS1 primer (Kirk et al., Table 2).
 }
 
 # ---------------------------------------------------------------------------

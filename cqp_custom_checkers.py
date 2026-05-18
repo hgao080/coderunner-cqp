@@ -13,11 +13,13 @@ cqp_checker.py:
     source.py:LINE:COL: CODE symbolic-name
 
 Custom codes (W90xx range):
-    W9001  docstring-closing-quote-placement   (Explanatory Language)
+    W9001  docstring-closing-quote-placement   (Clear Presentation)
     W9002  avoidable-backslash-in-string       (Simple Constructs)
     W9003  inconsistent-quote-style            (Consistent Code)
     W9004  inconsistent-operator-line-break    (Consistent Code)
     W9005  constant-in-function-scope          (Modular Structure)
+    W9006  ambiguous-variable-name             (Explanatory Language)
+    W9007  block-comment-wrong-indent          (Clear Presentation)
 """
 
 import ast
@@ -62,7 +64,7 @@ def run_custom_checks(source_code, codes):
                 )
 
     if 'W9004' in codes:
-        for lineno, col, code in _check_operator_linebreak():
+        for lineno, col, code in _check_operator_linebreak(source_code):
             lines.append(
                 f'source.py:{lineno}:{col}: {code} inconsistent-operator-line-break'
             )
@@ -71,6 +73,18 @@ def run_custom_checks(source_code, codes):
         for lineno, col, code in _check_constant_scope(source_code):
             lines.append(
                 f'source.py:{lineno}:{col}: {code} constant-in-function-scope'
+            )
+
+    if 'W9006' in codes:
+        for lineno, col, code in _check_ambiguous_names(source_code):
+            lines.append(
+                f'source.py:{lineno}:{col}: {code} ambiguous-variable-name'
+            )
+
+    if 'W9007' in codes:
+        for lineno, col, code in _check_block_comment_indent(source_code):
+            lines.append(
+                f'source.py:{lineno}:{col}: {code} block-comment-wrong-indent'
             )
 
     return '\n'.join(lines)
@@ -239,20 +253,17 @@ def _check_quote_style(source_code):
 # W9004 — Consistent binary-operator line-break style
 # ---------------------------------------------------------------------------
 
-def _check_operator_linebreak():
+def _check_operator_linebreak(source_code):
     """
-    Run pycodestyle with W503 and W504 enabled on the already-written
-    source.py. If violations of BOTH codes appear, the file mixes styles —
-    emit one W9004 violation pointing to the first line where the minority
-    style appears. If only one style is used consistently, no violation is
-    emitted.
-
-    Relies on source.py already existing in the working directory (written
-    by _write_source in check_principles before custom checks are run).
+    Run pycodestyle with W503 and W504 enabled against source_code via stdin.
+    If violations of BOTH codes appear, the file mixes styles — emit one W9004
+    violation pointing to the first line where the minority style appears. If
+    only one style is used consistently, no violation is emitted.
     """
     try:
         result = subprocess.check_output(
-            ['python3', '-m', 'pycodestyle', '--select=W503,W504', 'source.py'],
+            ['python3', '-m', 'pycodestyle', '--select=W503,W504', '-'],
+            input=source_code,
             universal_newlines=True,
             stderr=subprocess.STDOUT,
         )
@@ -281,6 +292,99 @@ def _check_operator_linebreak():
         minority_line = min(w503_lines)
 
     return [(minority_line, 0, 'W9004')]
+
+
+# ---------------------------------------------------------------------------
+# W9006 — Ambiguous single-character variable names
+# ---------------------------------------------------------------------------
+
+def _check_ambiguous_names(source_code):
+    """
+    Flag uses of 'l', 'O', or 'I' as variable/parameter names.
+    These single-character names are visually indistinguishable from the
+    digits 1, 0, and 1 in most fonts (PEP 8, guideline 4).
+    """
+    violations = []
+    ambiguous = {'l', 'O', 'I'}
+
+    try:
+        tree = ast.parse(source_code)
+    except SyntaxError:
+        return violations
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            if node.id in ambiguous:
+                violations.append((node.lineno, node.col_offset, 'W9006'))
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            all_args = (node.args.args + node.args.posonlyargs
+                        + node.args.kwonlyargs)
+            for arg in all_args:
+                if arg.arg in ambiguous:
+                    violations.append((arg.lineno, arg.col_offset, 'W9006'))
+            if node.args.vararg and node.args.vararg.arg in ambiguous:
+                violations.append(
+                    (node.args.vararg.lineno, node.args.vararg.col_offset, 'W9006')
+                )
+            if node.args.kwarg and node.args.kwarg.arg in ambiguous:
+                violations.append(
+                    (node.args.kwarg.lineno, node.args.kwarg.col_offset, 'W9006')
+                )
+        elif isinstance(node, ast.Lambda):
+            all_args = (node.args.args + node.args.posonlyargs
+                        + node.args.kwonlyargs)
+            for arg in all_args:
+                if arg.arg in ambiguous:
+                    violations.append((arg.lineno, arg.col_offset, 'W9006'))
+
+    return violations
+
+
+# ---------------------------------------------------------------------------
+# W9007 — Block comment indentation
+# ---------------------------------------------------------------------------
+
+def _check_block_comment_indent(source_code):
+    """
+    A block comment must be indented to the same level as the code it
+    applies to (the next non-blank, non-comment line that follows it).
+    Uses tokenize to avoid false positives from '#' inside string literals.
+    """
+    violations = []
+    lines = source_code.splitlines()
+
+    try:
+        toks = list(tokenize.generate_tokens(io.StringIO(source_code).readline))
+    except tokenize.TokenError:
+        return violations
+
+    # Collect block comment line numbers (1-based) and their indent columns.
+    block_comment_lines = {}
+    for tok in toks:
+        if tok.type != tokenize.COMMENT:
+            continue
+        lineno, col = tok.start
+        if not lines[lineno - 1][:col].strip():  # only whitespace before #
+            block_comment_lines[lineno] = col
+
+    # For each block comment, find the next non-blank, non-comment line.
+    for lineno in sorted(block_comment_lines):
+        comment_indent = block_comment_lines[lineno]
+        # Start scanning from the line immediately after this comment (0-based
+        # index lineno, since lineno is 1-based).
+        for j in range(lineno, len(lines)):
+            next_line = lines[j]
+            next_stripped = next_line.lstrip()
+            if not next_stripped:
+                continue  # blank line — keep looking
+            if (j + 1) in block_comment_lines:
+                continue  # another block comment line — keep looking
+            code_indent = len(next_line) - len(next_stripped)
+            if comment_indent != code_indent:
+                violations.append((lineno, comment_indent, 'W9007'))
+            break
+
+    return violations
 
 
 # ---------------------------------------------------------------------------
