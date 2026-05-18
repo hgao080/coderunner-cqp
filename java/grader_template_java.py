@@ -50,26 +50,22 @@ def build_feedback_html(results):
     failed = [r for r in results if r.get('violations')]
 
     annotations = []
-    feedback_lines = []
+    blocks = []
 
     for result in failed:
         name = result.get('name')
         principle = result.get('principle')
         rationale = result.get('rationale')
 
-        feedback_lines.append('<hr>')
-        feedback_lines.append(f'<b>CQP Principle: {name}</b><br>')
-        feedback_lines.append(f'<i>{principle}</i><br>')
-        feedback_lines.append(f'Rationale: {rationale}<br>')
-
+        violation_items = []
         for v in result.get('violations', []):
             line_no = v.get('line_no')
             raw = v.get('raw')
             explanation = v.get('explanation')
 
-            feedback_lines.append(
-                f'<br>Line {line_no}: <code>{raw}</code><br>'
-                f'&nbsp;&nbsp;Why this matters: {explanation}<br>'
+            violation_items.append(
+                f'<li>Line {line_no}: <code>{raw}</code><br>'
+                f'Why this matters: {explanation}</li>'
             )
             annotations.append({
                 'row': int(line_no) - 1,
@@ -78,8 +74,18 @@ def build_feedback_html(results):
                 'type': 'warning',
             })
 
-    feedback_html = '\n'.join(feedback_lines)
-    feedback_html += '<br><b>Please fix the above style issues and resubmit.</b>'
+        violations_html = '<ul>' + ''.join(violation_items) + '</ul>'
+        blocks.append(
+            f'<div style="margin-bottom:1em;">'
+            f'<div><b>CQP Principle: {name}</b></div>'
+            f'<div><i>{principle}</i></div>'
+            f'<div>Rationale: {rationale}</div>'
+            f'{violations_html}'
+            f'</div>'
+        )
+
+    feedback_html = '<hr>'.join(blocks)
+    feedback_html += '<b>Please fix the above style issues and resubmit.</b>'
 
     annotations_json = json.dumps(annotations)
 
